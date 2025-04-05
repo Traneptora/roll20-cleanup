@@ -2,6 +2,10 @@
     const d20 = window.d20 || window.currentPlayer.d20;
     const $ = window.$;
     const permit_thorough = true;
+    const log_error = (err) => {
+        console.log(err);
+        return null;
+    };
     const show_info = async (title, message) => {
         const $dialog = $(`<div class="dialog">${message}</div>`);
         return new Promise((resolve, reject) => {
@@ -249,8 +253,7 @@
         scan.wscan = check_bad_whisper(model);
         let close_callback = null;
         if (scan.wscan.badwhisper === null && data.thorough) {
-            close_callback = await open_sheet(model, true)
-                .catch((err) => { console.log(err); return null; } );
+            close_callback = await open_sheet(model, true).catch(log_error);
             if (close_callback) {
                 scan.wscan = check_bad_whisper(model);
             }
@@ -260,7 +263,7 @@
             all_clear = false;
         }
         if (close_callback) {
-            await close_callback().catch((err) => { console.log(err); return null; });
+            await close_callback().catch(log_error);
         }
         return { "all_clear": all_clear, "later": false };
     };
@@ -270,8 +273,7 @@
         chars.sort();
         const data = { "thorough": thorough, "chars": chars };
         for (const model of chars) {
-            const result = await scan_model(model, data)
-                .catch((err) => { console.log(err); return null; });
+            const result = await scan_model(model, data).catch(log_error);
             all_clear = result && result.all_clear && all_clear;
         }
         return all_clear;
