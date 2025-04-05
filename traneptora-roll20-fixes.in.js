@@ -230,17 +230,20 @@
         const scan = {"model": model, "data": data};
         scan.rscan = detect_sheet_removal_issue(model);
         const rfix = await safe_fix_unremovable_sheet(scan);
-        if (rfix.match && rfix.fix) {
+        if (rfix.fix) {
             return { "all_clear": false, "later": false };
+        }
+        if (rfix.match) {
+            all_clear = false;
         }
         scan.cscan = detect_sheet_name_collisions(scan);
         const cfix = await safe_fix_sheet_collision(scan);
-        if (cfix.match && cfix.fix) {
+        if (cfix.match) {
             all_clear = false;
         }
         scan.tscan = await detect_bad_token_default(model);
         const tfix = await safe_fix_incorrect_token(scan);
-        if (tfix.match && tfix.fix) {
+        if (tfix.match) {
             all_clear = false;
         }
         scan.wscan = check_bad_whisper(model);
@@ -253,7 +256,7 @@
             }
         }
         const wfix = await safe_fix_bad_whisper(scan);
-        if (wfix.match && wfix.fixed) {
+        if (wfix.match) {
             all_clear = false;
         }
         if (close_callback) {
