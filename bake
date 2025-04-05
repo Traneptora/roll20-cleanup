@@ -1,0 +1,55 @@
+#!/bin/sh
+
+base_level="$(git rev-parse --show-toplevel)" || exit 1
+cd "$base_level" || exit 1
+branch="$(git branch --show)"
+if [ "$branch" = "dist" ] ; then
+    git checkout main || exit 2
+    branch=main
+fi
+
+_cook() {
+    count="$(git rev-list "$branch" --count --since="$(date --utc +@%s --date="$(date --utc '+%Y-%m-%d 00:00')")")"
+    version_date="$(date --utc '+%Y.%m.%d')"
+    cat >traneptora-roll20-fixes.meta.js <<EOF
+// ==UserScript==
+// @name         Traneptora's Roll20 Cleanup Script
+// @namespace    https://traneptora.com/
+// @version      ${version_date}.${count}
+// @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
+// @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
+// @description  Traneptora's Roll20 Cleanup Script
+// @author       Traneptora
+
+// @match        https://app.roll20.net/editor
+// @match        https://app.roll20.net/editor#*
+// @match        https://app.roll20.net/editor?*
+// @match        https://app.roll20.net/editor/
+// @match        https://app.roll20.net/editor/#*
+// @match        https://app.roll20.net/editor/?*
+
+// @run-at       context-menu
+
+// @grant        none
+// ==/UserScript==
+EOF
+
+cat traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.in.js \
+    >traneptora-roll20-fixes.user.js
+}
+
+git checkout dist
+rm -f -- traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
+git add -v traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
+git commit -m "commit: $(date -u -Is)"
+git checkout "$branch"
+
+_cook
+
+git checkout dist
+git add -v traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
+git commit --fixup=HEAD
+git rebase --autosquash
+git push --force origin dist
+git checkout "$branch"
+rm -f -- traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
