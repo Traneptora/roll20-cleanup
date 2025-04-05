@@ -6,7 +6,7 @@
         console.log(err);
         return null;
     };
-    const show_info = async (title, message) => {
+    const show_info = (title, message) => {
         const $dialog = $(`<div class="dialog">${message}</div>`);
         return new Promise((resolve, reject) => {
             $dialog.dialog({
@@ -22,7 +22,7 @@
             });
         });
     }
-    const show_confirm_dialog = async (title, messages, options) => {
+    const show_confirm_dialog = (title, messages, options) => {
         return new Promise((resolve, reject) => {
             let dialog_html = '<div class="dialog">';
             let first = true;
@@ -58,7 +58,7 @@
             });
         });
     };
-    const open_sheet = async (model, hidden) => {
+    const open_sheet = (model, hidden) => {
         console.log(`Loading sheet: ${model.attributes.name}`);
         const cssrule = `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
         const styleSheet = document.styleSheets[0];
@@ -110,7 +110,7 @@
             wait_open();
         });
     };
-    const detect_bad_token_default = async (model) => {
+    const detect_bad_token_default = (model) => {
         return model.getDefaultToken().then((token) => {
             if (token.represents === model.id) {
                 return { "correct": true, "found": true };
@@ -147,7 +147,7 @@
             "rtype": rtype,
         };
     };
-    const safe_fix_incorrect_token = async (scan) => {
+    const safe_fix_incorrect_token = (scan) => {
         const tscan = scan.tscan;
         if (tscan.correct || !tscan.found) {
             return { "match": false };
@@ -171,7 +171,7 @@
             {
                 "key": "Yes, please fix.",
                 "fix": true,
-                "func": async () => {
+                "func": () => {
                     return scan.model.getDefaultToken().then((token) => {
                         token.represents = scan.model.id;
                         scan.model.saveDefaultToken(token);
@@ -180,10 +180,10 @@
             },
         ]);
     };
-    const safe_fix_unremovable_sheet = async (scan) => {
+    const safe_fix_unremovable_sheet = (scan) => {
         const rscan = scan.rscan;
         if (!rscan.owned || rscan.api_id) {
-            return ({ "match": false });
+            return { "match": false };
         }
         return show_confirm_dialog("Confirm Deletion", [
             {
@@ -237,11 +237,10 @@
         } while (!detect_sheet_name_collisions(scan, name).unique);
         scan.model.save({ "name": name });
     };
-    const safe_fix_sheet_collision = async (scan) => {
+    const safe_fix_sheet_collision = (scan) => {
         const cscan = scan.cscan;
         if (cscan.unique) {
             return { "match": false };
-
         }
         return show_confirm_dialog("Confirm Rename", [
             {
