@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.05.6
+// @version      2025.04.05.7
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
