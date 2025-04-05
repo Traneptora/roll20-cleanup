@@ -90,7 +90,7 @@
         /* undefined instead of null because isFinite(null) == true */
         const api_id = parts.length == 2 ? +parts[1] : undefined;
         if (isFinite(api_id)) {
-            return {"owned": true, "api_id": parts[1]};
+            return { "owned": true, "api_id": parts[1] };
         }
         return {"owned": true, "api_id": null };
     };
