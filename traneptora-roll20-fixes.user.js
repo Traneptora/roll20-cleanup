@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.05.3
+// @version      2025.04.05.4
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -110,7 +110,7 @@
         /* undefined instead of null because isFinite(null) == true */
         const api_id = parts.length == 2 ? +parts[1] : undefined;
         if (isFinite(api_id)) {
-            return {"owned": true, "api_id": parts[1]};
+            return { "owned": true, "api_id": parts[1] };
         }
         return {"owned": true, "api_id": null };
     };
