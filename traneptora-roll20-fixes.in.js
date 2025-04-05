@@ -22,6 +22,42 @@
             });
         });
     }
+    const show_confirm_dialog = async (title, messages, options) => {
+        return new Promise((resolve, reject) => {
+            let dialog_html = '<div class="dialog">';
+            let first = true;
+            for (const message of messages) {
+                if (!first) {
+                    dialog_html += '<br><br>';
+                }
+                if (typeof message === "object" && message.key) {
+                    dialog_html += `<b>${message.key}:</b><br>${message.value}`;
+                } else {
+                    dialog_html += message;
+                }
+                first = false;
+            }
+            dialog_html += '</div>';
+            const $dialog = $(dialog_html);
+            const buttons = {};
+            for (const opt of options) {
+                buttons[opt.key] = () => {
+                    $dialog.dialog("destroy").remove();
+                    Promise.resolve(opt.func()).then(() => {
+                        resolve({ "match": true, "fix": opt.fix });
+                    });
+                };
+            }
+            $dialog.dialog({
+                "modal": true,
+                "title": title,
+                "buttons": buttons,
+                "close": () => {
+                    resolve({ "match": true, "fix": false });
+                }
+            });
+        });
+    };
     const open_sheet = async (model, hidden) => {
         console.log(`Loading sheet: ${model.attributes.name}`);
         const cssrule = `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
@@ -112,64 +148,64 @@
         };
     };
     const safe_fix_incorrect_token = async (scan) => {
-        return new Promise((resolve, reject) => {
-            const tscan = scan.tscan;
-            if (tscan.correct || !tscan.found) {
-                resolve({ "match": false });
-                return;
-            }
-            const $dialog = $(`<div class="dialog">Found an issue with sheet: ${scan.model.attributes.name}.<br>Its default token is pointing to a different sheet: ${tscan.repr.attributes.name}.<br>Would you like this to be fixed?</div>`);
-            $dialog.dialog({
-                "modal": true,
-                "title": "Fix this issue?",
-                "buttons": {
-                    "No, do nothing.": () => {
-                        $dialog.dialog("destroy").remove();
-                        resolve({ "match": true, "fix": false });
-                    },
-                    "Yes, please fix.": () => {
-                        $dialog.dialog("destroy").remove();
-                        scan.model.getDefaultToken().then((token) => {
-                            token.represents = scan.model.id;
-                            scan.model.saveDefaultToken(token);
-                            resolve({ "match": true, "fix": true });
-                        });
-                    }
+        const tscan = scan.tscan;
+        if (tscan.correct || !tscan.found) {
+            return { "match": false };
+        }
+        return show_confirm_dialog("Fix this issue?", [
+            {
+                "key": "Found an issue with sheet",
+                "value": scan.model.attributes.name,
+            },
+            {
+                "key": "Its default token is pointing to a different sheet",
+                "value": tscan.repr.attributes.name,
+            },
+            "Would you like this to be fixed?",
+        ], [
+            {
+                "key": "No, do nothing.",
+                "fix": false,
+                "func": () => {},
+            },
+            {
+                "key": "Yes, please fix.",
+                "fix": true,
+                "func": async () => {
+                    return scan.model.getDefaultToken().then((token) => {
+                        token.represents = scan.model.id;
+                        scan.model.saveDefaultToken(token);
+                    });
                 },
-                "close": () => {
-                    resolve({ "match": true, "fix": false });
-                }
-            });
-        });
+            },
+        ]);
     };
     const safe_fix_unremovable_sheet = async (scan) => {
-        return new Promise((resolve, reject) => {
-            const rscan = scan.rscan;
-            if (!rscan.owned || rscan.api_id) {
-                resolve({ "match": false });
-                return;
-            }
-            const $dialog = $(`<div class"dialog">Found a linked sheet that you probably can't get rid of: ${scan.model.attributes.name}.<br>Would you like it to be deleted?"`);
-            $dialog.dialog({
-                "modal": true,
-                "title": "Confirm Deletion",
-                "buttons": {
-                    "No, do nothing.": () => {
-                        $dialog.dialog("destroy").remove();
-                        resolve({ "match": true, "fix": false });
-                    },
-                    "Yes, please delete.": () => {
-                        $dialog.dialog("destroy").remove();
-                        scan.model.attributes.ownedBy = undefined;
-                        scan.model.destroy();
-                        resolve({ "match": true, "fix": true });
-                    }
+        const rscan = scan.rscan;
+        if (!rscan.owned || rscan.api_id) {
+            return ({ "match": false });
+        }
+        return show_confirm_dialog("Confirm Deletion", [
+            {
+                "key": "Found a linked sheet that you probably can't get rid of",
+                "value": scan.model.attributes.name,
+            },
+            "Would you like it to be deleted?",
+        ], [
+            {
+                "key": "No, do nothing.",
+                "fix": false,
+                "func": () => {},
+            },
+            {
+                "key": "Yes, please delete.",
+                "fix": true,
+                "func": () => {
+                    scan.model.attributes.ownedBy = undefined;
+                    scan.model.destroy();
                 },
-                "close": () => {
-                    resolve({ "match": true, "fix": false });
-                }
-            });
-        });
+            },
+        ]);
     };
     const safe_fix_bad_whisper = async (scan) => {
         const wscan = scan.wscan;
@@ -202,32 +238,31 @@
         scan.model.save({ "name": name });
     };
     const safe_fix_sheet_collision = async (scan) => {
-        return new Promise((resolve, reject) => {
-            const cscan = scan.cscan;
-            if (cscan.unique) {
-                resolve({ "match": false });
-                return;
-            }
-            const $dialog = $(`<div class="dialog">Found at least two sheets with the same name: ${scan.model.attributes.name}.<br>This sometimes causes problems. Would you like to rename this one?`);
-            $dialog.dialog({
-                "modal": true,
-                "title": "Confirm Rename",
-                "buttons": {
-                    "No, do nothing.": () => {
-                        $dialog.dialog("destroy").remove();
-                        resolve({ "match": true, "fix": false });
-                    },
-                    "Yes, please rename.": () => {
-                        $dialog.dialog("destroy").remove();
-                        rename_sheet_from_collision(scan);
-                        resolve({ "match": true, "fix": true });
-                    }
+        const cscan = scan.cscan;
+        if (cscan.unique) {
+            return { "match": false };
+
+        }
+        return show_confirm_dialog("Confirm Rename", [
+            {
+                "key": "Found at least two sheets with the same name",
+                "value": scan.model.attributes.name,
+            },
+            "This sometimes causes problems. Would you like to rename this one?",
+        ], [
+            {
+                "key": "No, do nothing.",
+                "fix": false,
+                "func": () => {},
+            },
+            {
+                "key": "Yes, please rename.",
+                "fix": true,
+                "func": () => {
+                    rename_sheet_from_collision(scan);
                 },
-                "close": () => {
-                    resolve({ "match": true, "fix": false });
-                }
-            });
-        });
+            },
+        ]);
     };
     const scan_model = async (model, data) => {
         let all_clear = true;
