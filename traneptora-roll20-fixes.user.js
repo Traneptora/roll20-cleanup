@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.05.8
+// @version      2025.04.07.1
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -27,7 +27,7 @@
         console.log(err);
         return null;
     };
-    const show_info = async (title, message) => {
+    const show_info = (title, message) => {
         const $dialog = $(`<div class="dialog">${message}</div>`);
         return new Promise((resolve, reject) => {
             $dialog.dialog({
@@ -43,7 +43,7 @@
             });
         });
     }
-    const show_confirm_dialog = async (title, messages, options) => {
+    const show_confirm_dialog = (title, messages, options) => {
         return new Promise((resolve, reject) => {
             let dialog_html = '<div class="dialog">';
             let first = true;
@@ -79,7 +79,11 @@
             });
         });
     };
-    const open_sheet = async (model, hidden) => {
+    const get_document = (model) => {
+        const fec = model.view.el?.firstElementChild;
+        return fec?.contentDocument || fec?.contentWindow?.document;
+    };
+    const open_sheet = (model, hidden) => {
         console.log(`Loading sheet: ${model.attributes.name}`);
         const cssrule = `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
         const styleSheet = document.styleSheets[0];
@@ -112,8 +116,7 @@
                     reject(`Timed out on loading page view for model: ${model.id}`);
                     return;
                 }
-                const fec = model.view.el.firstElementChild;
-                const doc = fec?.contentDocument || fec?.contentWindow?.document;
+                const doc = get_document(model);
                 if (!doc?.querySelector(".charactersheet")) {
                     setTimeout(wait_open, 100);
                     return;
@@ -131,7 +134,7 @@
             wait_open();
         });
     };
-    const detect_bad_token_default = async (model) => {
+    const detect_bad_token_default = (model) => {
         return model.getDefaultToken().then((token) => {
             if (token.represents === model.id) {
                 return { "correct": true, "found": true };
@@ -168,7 +171,7 @@
             "rtype": rtype,
         };
     };
-    const safe_fix_incorrect_token = async (scan) => {
+    const safe_fix_incorrect_token = (scan) => {
         const tscan = scan.tscan;
         if (tscan.correct || !tscan.found) {
             return { "match": false };
@@ -192,7 +195,7 @@
             {
                 "key": "Yes, please fix.",
                 "fix": true,
-                "func": async () => {
+                "func": () => {
                     return scan.model.getDefaultToken().then((token) => {
                         token.represents = scan.model.id;
                         scan.model.saveDefaultToken(token);
@@ -201,10 +204,10 @@
             },
         ]);
     };
-    const safe_fix_unremovable_sheet = async (scan) => {
+    const safe_fix_unremovable_sheet = (scan) => {
         const rscan = scan.rscan;
         if (!rscan.owned || rscan.api_id) {
-            return ({ "match": false });
+            return { "match": false };
         }
         return show_confirm_dialog("Confirm Deletion", [
             {
@@ -233,14 +236,13 @@
         if (!wscan.badwhisper) {
             return {"match": false};
         }
-        const selectbox = scan.model.view.el?.firstElementChild?.contentDocument
-            ?.querySelector(".is-npc select[name=attr_wtype]");
+        const selectbox = get_document(scan.model)?.querySelector(".is-npc select[name=attr_wtype]");
         if (selectbox) {
             console.log(`Enabling Whisper Toggle For: ${scan.model.attributes.name}`);
             selectbox.value = "@{whispertoggle}";
             await scan.model.view.saveSheetValues(selectbox);
         }
-        return { "match": true, "fixed": !!selectbox };
+        return { "match": true, "fix": !!selectbox };
     };
     const detect_sheet_name_collisions = (scan, name) => {
         if (!name) {
@@ -258,11 +260,10 @@
         } while (!detect_sheet_name_collisions(scan, name).unique);
         scan.model.save({ "name": name });
     };
-    const safe_fix_sheet_collision = async (scan) => {
+    const safe_fix_sheet_collision = (scan) => {
         const cscan = scan.cscan;
         if (cscan.unique) {
             return { "match": false };
-
         }
         return show_confirm_dialog("Confirm Rename", [
             {
@@ -284,6 +285,106 @@
                 },
             },
         ]);
+    };
+    const get_attribute = (model, name) => {
+        const attr = model.attribs.models.filter(m => m.attributes.name === name);
+        return attr.length > 0 ? attr[0].attributes.current : null;
+    };
+    const scan_sheetvalues = (model) => {
+        if (!model.attribs.models.length) {
+            return { "issue": null };
+        }
+        const vscan = {};
+        vscan.type = get_attribute(model, "charactersheet_type");
+        vscan.issue = false;
+        if (vscan.type === "npc") {
+            vscan.crstr = get_attribute(model, "npc_challenge") || "NaN";
+            const fracsplit = vscan.crstr.split("/", 2);
+            if (+fracsplit[0] >= 0 && +fracsplit[1] > 0) {
+                vscan.cr = +fracsplit[0] / +fracsplit[1];
+            } else {
+                vscan.cr = +vscan.crstr;
+            }
+            vscan.pb = +get_attribute(model, "npc_pb");
+            vscan.fix_npc_pb = vscan.pb === 0 && vscan.cr >= 0;
+            vscan.issue = vscan.fix_npc_pb || vscan.issue;
+        } else if (vscan.type === "pc") {
+            vscan.pb = +get_attribute(model, "pb");
+        }
+        return vscan;
+    };
+    const safe_fix_sheetvalues = async (scan) => {
+        const vscan = scan.vscan;
+        if (!vscan.issue) {
+            return { "match": false };
+        }
+        let p = Promise.resolve({ "match": true, "fix": false });
+        const yestoall = scan.data.yestoall;
+        if (vscan.fix_npc_pb) {
+            const correct_pb = 2 + Math.trunc((vscan.cr - 1) / 4.0);
+            const fix = async () => {
+                console.log(`Setting PB to ${correct_pb} for: ${scan.model.attributes.name}`);
+                const pb_input = get_document(scan.model)
+                    ?.querySelector(".is-npc input[name=attr_npc_pb]");
+                if (pb_input) {
+                    pb_input.value = correct_pb;
+                    await scan.model.view.saveSheetValues(pb_input);
+                }
+            };
+            if (yestoall.npc_pb === true) {
+                p = p.then(async () => {
+                    return fix().then(() => ({ "match": true, "fix": true }));
+                });
+            } else {
+                p = p.then(async (prev) => {
+                    const barray = [
+                        {
+                            "key": "No, do nothing.",
+                            "fix": false,
+                            "func": () => {},
+                        },
+                        {
+                            "key": "Yes, please fix.",
+                            "fix": true,
+                            "func": () => {
+                                if (yestoall.npc_pb === undefined) {
+                                    yestoall.npc_pb = false;
+                                }
+                                return fix();
+                            },
+                        },
+                    ];
+                    if (yestoall.npc_pb === false) {
+                        barray.push({
+                            "key": "Yes, please fix ALL such issues.",
+                            "fix": true,
+                            "func": () => {
+                                yestoall.npc_pb = true;
+                                return fix();
+                            },
+                        });
+                    }
+                    const v = await show_confirm_dialog("Fix Sheet PB?", [
+                        {
+                            "key": "This NPC sheet has its PB set to 0",
+                            "value": scan.model.attributes.name,
+                        },
+                        {
+                            "key": "Its Challlenge Rating is",
+                            "value": vscan.crstr,
+                        },
+                        {
+                            "key": "Its Proficiency Bonus <em>should</em> be",
+                            "value": correct_pb.toString(),
+                        },
+                        "Would you like me to fix its PB?",
+                    ], barray);
+                    prev.fix = v.fix || prev.fix;
+                    return prev;
+                });
+            }
+        }
+        return p;
     };
     const scan_model = async (model, data) => {
         let all_clear = true;
@@ -318,6 +419,19 @@
         if (wfix.match) {
             all_clear = false;
         }
+        scan.vscan = scan_sheetvalues(model);
+        if (scan.vscan.issue === null && data.thorough) {
+            if (!close_callback) {
+                close_callback = await open_sheet(model, true).catch(log_error);
+            }
+            if (close_callback) {
+                scan.vscan = scan_sheetvalues(model);
+            }
+        }
+        const vfix = await safe_fix_sheetvalues(scan);
+        if (vfix.match) {
+            all_clear = false;
+        }
         if (close_callback) {
             await close_callback().catch(log_error);
         }
@@ -327,7 +441,7 @@
         let all_clear = true;
         const chars = d20.Campaign.activeCharacters();
         chars.sort();
-        const data = { "thorough": thorough, "chars": chars };
+        const data = { "thorough": thorough, "chars": chars, "yestoall": {} };
         for (const model of chars) {
             const result = await scan_model(model, data).catch(log_error);
             all_clear = result && result.all_clear && all_clear;
