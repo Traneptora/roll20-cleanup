@@ -16,7 +16,7 @@ Push Install, to install the script. Then, when you're on a roll20 page, right c
 
 ![trigger script](https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/main/img/trigger-script.png)
 
-You should see something like this, which means it's going.
+You should see something like this. Push the option in the menu to launch the script. You'll see this, which means it worked:
 
 ![scan-type](https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/main/img/scan-type.png)
 
