@@ -11,32 +11,11 @@ fi
 _cook() {
     count="$(git rev-list "$branch" --count --since="$(date --utc +@%s --date="$(date --utc '+%Y-%m-%d 00:00')")")"
     version_date="$(date --utc '+%Y.%m.%d')"
-    cat >traneptora-roll20-fixes.meta.js <<EOF
-// ==UserScript==
-// @name         Traneptora's Roll20 Cleanup Script
-// @namespace    https://traneptora.com/
-// @version      ${version_date}.${count}
-// @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
-// @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
-// @description  Traneptora's Roll20 Cleanup Script
-// @author       Traneptora
-// @icon         https://traneptora.com/images/avatar/128.png?v=3
-
-// @match        https://app.roll20.net/editor
-// @match        https://app.roll20.net/editor#*
-// @match        https://app.roll20.net/editor?*
-// @match        https://app.roll20.net/editor/
-// @match        https://app.roll20.net/editor/#*
-// @match        https://app.roll20.net/editor/?*
-
-// @run-at       context-menu
-
-// @grant        none
-// ==/UserScript==
-EOF
-
-cat traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.in.js \
-    >traneptora-roll20-fixes.user.js
+    sed -E "s/BAKE_VERSION/${version_date}.${count}/g" \
+        <traneptora-roll20-fixes.meta.in.js >traneptora-roll20-fixes.meta.js
+    printf '\n' >>traneptora-roll20-fixes.meta.js
+    cat traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.in.js \
+        >traneptora-roll20-fixes.user.js
 }
 
 git checkout dist
