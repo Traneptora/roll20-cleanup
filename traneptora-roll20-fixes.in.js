@@ -40,6 +40,13 @@
             dialog_html += '</div>';
             const $dialog = $(dialog_html);
             const buttons = {};
+            options = [
+                {
+                    "key": "No, do nothing.",
+                    "fix": false,
+                    "func": () => {},
+                },
+            ].concat(options);
             for (const opt of options) {
                 buttons[opt.key] = () => {
                     $dialog.dialog("destroy").remove();
@@ -166,11 +173,6 @@
             "Would you like this to be fixed?",
         ], [
             {
-                "key": "No, do nothing.",
-                "fix": false,
-                "func": () => {},
-            },
-            {
                 "key": "Yes, please fix.",
                 "fix": true,
                 "func": () => {
@@ -194,11 +196,6 @@
             },
             "Would you like it to be deleted?",
         ], [
-            {
-                "key": "No, do nothing.",
-                "fix": false,
-                "func": () => {},
-            },
             {
                 "key": "Yes, please delete.",
                 "fix": true,
@@ -250,11 +247,6 @@
             },
             "This sometimes causes problems. Would you like to rename this one?",
         ], [
-            {
-                "key": "No, do nothing.",
-                "fix": false,
-                "func": () => {},
-            },
             {
                 "key": "Yes, please rename.",
                 "fix": true,
@@ -314,11 +306,6 @@
             } else {
                 p = p.then(async (prev) => {
                     const barray = [
-                        {
-                            "key": "No, do nothing.",
-                            "fix": false,
-                            "func": () => {},
-                        },
                         {
                             "key": "Yes, please fix.",
                             "fix": true,
