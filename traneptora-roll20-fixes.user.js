@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.08.2
+// @version      2025.04.08.3
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -19,6 +19,7 @@
 
 // @grant        none
 // ==/UserScript==
+
 (async () => {
     const d20 = window.d20 || window.currentPlayer.d20;
     const $ = window.$;
