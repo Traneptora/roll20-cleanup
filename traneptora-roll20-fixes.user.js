@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.08.1
+// @version      2025.04.08.2
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -61,6 +61,13 @@
             dialog_html += '</div>';
             const $dialog = $(dialog_html);
             const buttons = {};
+            options = [
+                {
+                    "key": "No, do nothing.",
+                    "fix": false,
+                    "func": () => {},
+                },
+            ].concat(options);
             for (const opt of options) {
                 buttons[opt.key] = () => {
                     $dialog.dialog("destroy").remove();
@@ -187,11 +194,6 @@
             "Would you like this to be fixed?",
         ], [
             {
-                "key": "No, do nothing.",
-                "fix": false,
-                "func": () => {},
-            },
-            {
                 "key": "Yes, please fix.",
                 "fix": true,
                 "func": () => {
@@ -215,11 +217,6 @@
             },
             "Would you like it to be deleted?",
         ], [
-            {
-                "key": "No, do nothing.",
-                "fix": false,
-                "func": () => {},
-            },
             {
                 "key": "Yes, please delete.",
                 "fix": true,
@@ -271,11 +268,6 @@
             },
             "This sometimes causes problems. Would you like to rename this one?",
         ], [
-            {
-                "key": "No, do nothing.",
-                "fix": false,
-                "func": () => {},
-            },
             {
                 "key": "Yes, please rename.",
                 "fix": true,
@@ -335,11 +327,6 @@
             } else {
                 p = p.then(async (prev) => {
                     const barray = [
-                        {
-                            "key": "No, do nothing.",
-                            "fix": false,
-                            "func": () => {},
-                        },
                         {
                             "key": "Yes, please fix.",
                             "fix": true,
