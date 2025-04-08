@@ -250,9 +250,7 @@
             {
                 "key": "Yes, please rename.",
                 "fix": true,
-                "func": () => {
-                    rename_sheet_from_collision(scan);
-                },
+                "func": () => rename_sheet_from_collision(scan),
             },
         ]);
     };
@@ -298,7 +296,7 @@
                     ?.querySelector(".is-npc input[name=attr_npc_pb]");
                 if (pb_input) {
                     pb_input.value = correct_pb;
-                    await scan.model.view.saveSheetValues(pb_input);
+                    return scan.model.view.saveSheetValues(pb_input);
                 }
             };
             if (yestoall.npc_pb === true) {
@@ -436,9 +434,7 @@
                         resolve("thorough");
                     }
                 },
-                "close": () => {
-                    reject("closed");
-                }
+                "close": () => reject("closed"),
             });
         });
     };
