@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.07.1
+// @version      2025.04.08.1
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -162,11 +162,10 @@
         if (!model.attribs.models.length) {
             return { "badwhisper": null };
         }
-        const rtype = model.attribs.models.find(m => m.attributes.name === "rtype");
-        const wtype = model.attribs.models.find(m => m.attributes.name === "wtype");
+        const rtype = get_attribute(model, "rtype");
+        const wtype = get_attribute(model, "wtype");
         return {
-            "badwhisper": rtype?.attributes.current === "@{advantagetoggle}"
-                       && wtype?.attributes.current.trim() === "",
+            "badwhisper": rtype === "@{advantagetoggle}" && wtype?.trim() === "",
             "wtype": wtype,
             "rtype": rtype,
         };
@@ -234,7 +233,7 @@
     const safe_fix_bad_whisper = async (scan) => {
         const wscan = scan.wscan;
         if (!wscan.badwhisper) {
-            return {"match": false};
+            return { "match": false };
         }
         const selectbox = get_document(scan.model)?.querySelector(".is-npc select[name=attr_wtype]");
         if (selectbox) {
@@ -298,7 +297,7 @@
         vscan.type = get_attribute(model, "charactersheet_type");
         vscan.issue = false;
         if (vscan.type === "npc") {
-            vscan.crstr = get_attribute(model, "npc_challenge") || "NaN";
+            vscan.crstr = get_attribute(model, "npc_challenge")?.trim() || "NaN";
             const fracsplit = vscan.crstr.split("/", 2);
             if (+fracsplit[0] >= 0 && +fracsplit[1] > 0) {
                 vscan.cr = +fracsplit[0] / +fracsplit[1];
@@ -332,9 +331,7 @@
                 }
             };
             if (yestoall.npc_pb === true) {
-                p = p.then(async () => {
-                    return fix().then(() => ({ "match": true, "fix": true }));
-                });
+                p = p.then(fix).then(() => ({ "match": true, "fix": true }));
             } else {
                 p = p.then(async (prev) => {
                     const barray = [
