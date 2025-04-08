@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.08.3
+// @version      2025.04.08.7
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -272,9 +272,7 @@
             {
                 "key": "Yes, please rename.",
                 "fix": true,
-                "func": () => {
-                    rename_sheet_from_collision(scan);
-                },
+                "func": () => rename_sheet_from_collision(scan),
             },
         ]);
     };
@@ -320,7 +318,7 @@
                     ?.querySelector(".is-npc input[name=attr_npc_pb]");
                 if (pb_input) {
                     pb_input.value = correct_pb;
-                    await scan.model.view.saveSheetValues(pb_input);
+                    return scan.model.view.saveSheetValues(pb_input);
                 }
             };
             if (yestoall.npc_pb === true) {
@@ -458,9 +456,7 @@
                         resolve("thorough");
                     }
                 },
-                "close": () => {
-                    reject("closed");
-                }
+                "close": () => reject("closed"),
             });
         });
     };
