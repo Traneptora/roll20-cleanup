@@ -8,12 +8,7 @@
 // @author       Traneptora
 // @icon         https://traneptora.com/images/avatar/128.png?v=3
 
-// @match        https://app.roll20.net/editor
-// @match        https://app.roll20.net/editor#*
-// @match        https://app.roll20.net/editor?*
 // @match        https://app.roll20.net/editor/
-// @match        https://app.roll20.net/editor/#*
-// @match        https://app.roll20.net/editor/?*
 
 // @run-at       context-menu
 
