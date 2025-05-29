@@ -1,19 +1,14 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.04.08.7
+// @version      2025.05.29.1
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
 // @author       Traneptora
 // @icon         https://traneptora.com/images/avatar/128.png?v=3
 
-// @match        https://app.roll20.net/editor
-// @match        https://app.roll20.net/editor#*
-// @match        https://app.roll20.net/editor?*
 // @match        https://app.roll20.net/editor/
-// @match        https://app.roll20.net/editor/#*
-// @match        https://app.roll20.net/editor/?*
 
 // @run-at       context-menu
 
@@ -43,7 +38,7 @@
                 "close": reject,
             });
         });
-    }
+    };
     const show_confirm_dialog = (title, messages, options) => {
         return new Promise((resolve, reject) => {
             let dialog_html = '<div class="dialog">';
@@ -52,7 +47,7 @@
                 if (!first) {
                     dialog_html += '<br><br>';
                 }
-                if (typeof message === "object" && message.key) {
+                if (typeof message === "object" && message?.key) {
                     dialog_html += `<b>${message.key}:</b><br>${message.value}`;
                 } else {
                     dialog_html += message;
