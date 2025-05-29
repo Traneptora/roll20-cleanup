@@ -21,7 +21,7 @@
                 "close": reject,
             });
         });
-    }
+    };
     const show_confirm_dialog = (title, messages, options) => {
         return new Promise((resolve, reject) => {
             let dialog_html = '<div class="dialog">';
@@ -30,7 +30,7 @@
                 if (!first) {
                     dialog_html += '<br><br>';
                 }
-                if (typeof message === "object" && message.key) {
+                if (typeof message === "object" && message?.key) {
                     dialog_html += `<b>${message.key}:</b><br>${message.value}`;
                 } else {
                     dialog_html += message;
