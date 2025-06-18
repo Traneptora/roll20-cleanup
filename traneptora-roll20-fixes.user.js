@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.06.18.3
+// @version      2025.06.18.4
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -221,7 +221,7 @@
         if (rscan.api_id) {
             return show_confirm_dialog("Confirm Deletion", [
                 {
-                    "key": "Found a linked sheet:",
+                    "key": "Found a linked sheet",
                     "value": scan.model.attributes.name,
                 },
                 "Would you like me to do anything about it?",
@@ -281,11 +281,11 @@
                         if (scan.model._blobcache.gmnotes) {
                             blobs.gmnotes = scan.model._blobcache.gmnotes;
                         }
+                        await dupe.updateBlobs(blobs);
                         if (tok) {
                             tok.represents = dupe.id;
-                            blobs.defaulttoken = JSON.stringify(tok);
                         }
-                        await dupe.updateBlobs(blobs);
+                        await dupe.saveDefaultToken(tok);
                         const dig = (arr) => {
                             for (let idx = 0; idx < arr.length; idx++) {
                                 if (arr[idx] === scan.model.id) {
