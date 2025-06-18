@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.06.18.1
+// @version      2025.06.18.2
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -239,6 +239,9 @@
                     "fix": true,
                     "func": async () => {
                         let close = await open_sheet(scan.model, true).catch(log_error);
+                        if (!close) {
+                            return;
+                        }
                         await close();
                         const orig = scan.model.toJSON();
                         delete orig.id;
@@ -282,8 +285,11 @@
                             tok.represents = dupe.id;
                             blobs.defaulttoken = JSON.stringify(tok);
                         }
-                        dupe.updateBlobs(blobs);
+                        await dupe.updateBlobs(blobs);
                         close = await open_sheet(dupe, true).catch(log_error);
+                        if (!close) {
+                            return;
+                        }
                         const dig = (arr) => {
                             for (let idx = 0; idx < arr.length; idx++) {
                                 if (arr[idx] === scan.model.id) {
