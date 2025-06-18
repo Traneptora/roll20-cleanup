@@ -6,6 +6,9 @@
         console.log(err);
         return null;
     };
+    const timeout = (ms) => {
+        return new Promise((resolve, reject) => setTimeout(resolve, ms));
+    };
     const show_info = (title, message) => {
         const $dialog = $(`<div class="dialog">${message}</div>`);
         return new Promise((resolve, reject) => {
@@ -92,15 +95,24 @@
             }
             return Promise.reject(`Couldn't find rule that was inserted for model: ${model.id}`);
         };
-        document.querySelector(`li[data-itemid="${model.id}"]`).click();
         return new Promise((resolve, reject) => {
             let mancer_count = 0;
             let count = 0;
+            let clicked = false;
             const wait_open = () => {
                 if (count++ >= 20) {
                     model.view.remove();
                     reject(`Timed out on loading page view for model: ${model.id}`);
                     return;
+                }
+                const li = document.querySelector(`li[data-itemid="${model.id}"]`);
+                if (!li) {
+                    setTimeout(wait_open, 100);
+                    return;
+                }
+                if (!clicked) {
+                    li.click();
+                    clicked = true;
                 }
                 const doc = get_document(model);
                 if (!doc?.querySelector(".charactersheet")) {
@@ -186,25 +198,121 @@
     };
     const safe_fix_unremovable_sheet = (scan) => {
         const rscan = scan.rscan;
-        if (!rscan.owned || rscan.api_id) {
+        if (!rscan.owned) {
             return { "match": false };
         }
-        return show_confirm_dialog("Confirm Deletion", [
-            {
-                "key": "Found a linked sheet that you probably can't get rid of",
-                "value": scan.model.attributes.name,
-            },
-            "Would you like it to be deleted?",
-        ], [
-            {
-                "key": "Yes, please delete.",
-                "fix": true,
-                "func": () => {
-                    scan.model.attributes.ownedBy = undefined;
-                    scan.model.destroy();
+        if (rscan.api_id) {
+            return show_confirm_dialog("Confirm Deletion", [
+                {
+                    "key": "Found a linked sheet:",
+                    "value": scan.model.attributes.name,
                 },
-            },
-        ]);
+                "Would you like me to do anything about it?",
+            ], [
+                {
+                    "key": "Yes, remove it.",
+                    "fix": true,
+                    "func": () => {
+                        scan.model.attributes.ownedBy = undefined;
+                        scan.model.destroy();
+                    },
+                },
+                {
+                    "key": "Yes, unlink it.",
+                    "fix": true,
+                    "func": async () => {
+                        let close = await open_sheet(scan.model, true).catch(log_error);
+                        await close();
+                        const orig = scan.model.toJSON();
+                        delete orig.id;
+                        orig.ownedBy = "";
+                        orig.account_id = null;
+                        const dupe = scan.model.collection.create(orig);
+                        await timeout(100);
+                        let attrorder = dupe.get("attrorder");
+                        const tok = await scan.model.getDefaultToken();
+                        scan.model.attribs.each((a) => {
+                            let j = a.toJSON();
+                            delete j.id;
+                            const a2 = dupe.attribs.create(j);
+                            if (tok?.bar1_link === a.id) {
+                                tok.bar1_link = a2.id;
+                            }
+                            if (tok?.bar2_link === a.id) {
+                                tok.bar2_link = a2.id;
+                            }
+                            if (tok?.bar3_link === a.id) {
+                                tok.bar3_link = a2.id;
+                            }
+                            attrorder = attrorder.replace(a.id, a2.id);
+                        });
+                        let abilorder = dupe.get("abilorder");
+                        scan.model.abilities.each((a) => {
+                            let j = a.toJSON();
+                            delete j.id;
+                            const a2 = dupe.abilities.create(j);
+                            abilorder = abilorder.replace(a.id, a2.id);
+                        });
+                        dupe.save({ "abilorder": abilorder, "attrorder": attrorder });
+                        const blobs = {};
+                        if (scan.model._blobcache.bio) {
+                            blobs.bio = scan.model._blobcache.bio;
+                        }
+                        if (scan.model._blobcache.gmnotes) {
+                            blobs.gmnotes = scan.model._blobcache.gmnotes;
+                        }
+                        if (tok) {
+                            tok.represents = dupe.id;
+                            blobs.defaulttoken = JSON.stringify(tok);
+                        }
+                        dupe.updateBlobs(blobs);
+                        close = await open_sheet(dupe, true).catch(log_error);
+                        const dig = (arr) => {
+                            for (let idx = 0; idx < arr.length; idx++) {
+                                if (arr[idx] === scan.model.id) {
+                                    arr.splice(idx, 1, dupe.id);
+                                    return true;
+                                }
+                                if (typeof arr[idx] === "object" && Array.isArray(arr[idx]?.i)) {
+                                    if (dig(arr[idx].i)) {
+                                        return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        };
+                        let jf = d20.Campaign.get("journalfolder");
+                        if (jf !== "") {
+                            jf = JSON.parse(jf);
+                            if (Array.isArray(jf)) {
+                                dig(jf);
+                                jf = JSON.stringify(jf);
+                                d20.Campaign.save({ "journalfolder": jf });
+                            }
+                        }
+                        scan.model.destroy();
+                        await close();
+                    },
+                },
+            ]);
+        } else {
+            return show_confirm_dialog("Confirm Deletion", [
+                {
+                    "key": "Found a semi-linked sheet that you probably can't get rid of",
+                    "value": scan.model.attributes.name,
+                },
+                "Would you like it to be deleted?",
+            ], [
+                {
+                    "key": "Yes, please delete.",
+                    "fix": true,
+                    "func": () => {
+                        scan.model.attributes.ownedBy = undefined;
+                        scan.model.destroy();
+                    },
+                },
+            ]);
+        }
     };
     const safe_fix_bad_whisper = async (scan) => {
         const wscan = scan.wscan;
