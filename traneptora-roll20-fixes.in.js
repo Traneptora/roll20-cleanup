@@ -204,7 +204,7 @@
         if (rscan.api_id) {
             return show_confirm_dialog("Confirm Deletion", [
                 {
-                    "key": "Found a linked sheet:",
+                    "key": "Found a linked sheet",
                     "value": scan.model.attributes.name,
                 },
                 "Would you like me to do anything about it?",
@@ -264,11 +264,11 @@
                         if (scan.model._blobcache.gmnotes) {
                             blobs.gmnotes = scan.model._blobcache.gmnotes;
                         }
+                        await dupe.updateBlobs(blobs);
                         if (tok) {
                             tok.represents = dupe.id;
-                            blobs.defaulttoken = JSON.stringify(tok);
                         }
-                        await dupe.updateBlobs(blobs);
+                        await dupe.saveDefaultToken(tok);
                         const dig = (arr) => {
                             for (let idx = 0; idx < arr.length; idx++) {
                                 if (arr[idx] === scan.model.id) {
