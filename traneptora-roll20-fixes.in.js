@@ -269,10 +269,6 @@
                             blobs.defaulttoken = JSON.stringify(tok);
                         }
                         await dupe.updateBlobs(blobs);
-                        close = await open_sheet(dupe, true).catch(log_error);
-                        if (!close) {
-                            return;
-                        }
                         const dig = (arr) => {
                             for (let idx = 0; idx < arr.length; idx++) {
                                 if (arr[idx] === scan.model.id) {
@@ -297,7 +293,6 @@
                             }
                         }
                         scan.model.destroy();
-                        await close();
                     },
                 },
             ]);
