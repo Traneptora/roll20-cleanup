@@ -222,6 +222,9 @@
                     "fix": true,
                     "func": async () => {
                         let close = await open_sheet(scan.model, true).catch(log_error);
+                        if (!close) {
+                            return;
+                        }
                         await close();
                         const orig = scan.model.toJSON();
                         delete orig.id;
@@ -265,8 +268,11 @@
                             tok.represents = dupe.id;
                             blobs.defaulttoken = JSON.stringify(tok);
                         }
-                        dupe.updateBlobs(blobs);
+                        await dupe.updateBlobs(blobs);
                         close = await open_sheet(dupe, true).catch(log_error);
+                        if (!close) {
+                            return;
+                        }
                         const dig = (arr) => {
                             for (let idx = 0; idx < arr.length; idx++) {
                                 if (arr[idx] === scan.model.id) {
