@@ -267,8 +267,8 @@
                         await dupe.updateBlobs(blobs);
                         if (tok) {
                             tok.represents = dupe.id;
+                            await dupe.saveDefaultToken(tok);
                         }
-                        await dupe.saveDefaultToken(tok);
                         const dig = (arr) => {
                             for (let idx = 0; idx < arr.length; idx++) {
                                 if (arr[idx] === scan.model.id) {
