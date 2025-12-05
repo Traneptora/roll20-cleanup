@@ -81,7 +81,7 @@
         const close_sheet = () => {
             const close_button = document.querySelector(
                 `div:has(a.ui-dialog-titlebar-close):has(div[data-characterid="${model.id}"])`
-                +  'a.ui-dialog-titlebar-close');
+                + ' a.ui-dialog-titlebar-close');
             if (!close_button) {
                 return Promise.reject(`Couldn't find close button for model: ${model.id}`);
             }
