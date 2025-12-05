@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.12.05.6
+// @version      2025.12.05.7
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -94,38 +94,39 @@
         const fec = model.view.el?.firstElementChild;
         return fec?.contentDocument || fec?.contentWindow?.document;
     };
-    const open_sheet = (model, hidden) => {
-        console.log(`Loading sheet: ${model.attributes.name}`);
-        const cssrule = `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
-        const styleSheet = document.styleSheets[0];
-        const ruleList = styleSheet.cssRules;
-        const idx = hidden ? styleSheet.insertRule(cssrule) : 0;
+    const close_sheet = (model) => {
         if (model?.characterSheet?.shortName !== "ogl5e") {
             return Promise.reject(`Refusing to open non ogl5e sheet: ${model.id}`);
         }
-        const close_sheet = () => {
-            const close_button = document.querySelector(
+        const cssrule = `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
+        const styleSheet = document.styleSheets[0];
+        const ruleList = styleSheet.cssRules;
+        const close_button = document.querySelector(
                 `div:has(a.ui-dialog-titlebar-close):has(div[data-characterid="${model.id}"])`
                 + ' a.ui-dialog-titlebar-close');
-            if (!close_button) {
-                return Promise.reject(`Couldn't find close button for model: ${model.id}`);
-            }
-            close_button.click();
-            if (!hidden) {
+        if (!close_button) {
+            return Promise.reject(`Couldn't find close button for model: ${model.id}`);
+        }
+        close_button.click();
+        for (let i = 0; i < ruleList.length; i++) {
+            if (ruleList[i].cssText === cssrule) {
+                styleSheet.deleteRule(i);
                 return Promise.resolve();
             }
-            if (ruleList[idx].cssText === cssrule) {
-                styleSheet.deleteRule(idx);
-                return Promise.resolve();
-            }
-            for (let i = 0; i < ruleList.length; i++) {
-                if (ruleList[i].cssText === cssrule) {
-                    styleSheet.deleteRule(i);
-                    return Promise.resolve();
-                }
-            }
-            return Promise.reject(`Couldn't find rule that was inserted for model: ${model.id}`);
-        };
+        }
+        return Promise.resolve();
+    };
+    const open_sheet = (model, hidden) => {
+        console.log(`Loading sheet: ${model.attributes.name}`);
+        if (model?.characterSheet?.shortName !== "ogl5e") {
+            return Promise.reject(`Refusing to open non ogl5e sheet: ${model.id}`);
+        }
+        if (hidden) {
+            const cssrule =
+                `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
+            const styleSheet = document.styleSheets[0];
+            styleSheet.insertRule(cssrule);
+        }
         return new Promise((resolve, reject) => {
             let mancer_count = 0;
             let count = 0;
@@ -158,9 +159,7 @@
                 if (mancer) {
                     mancer.click();
                 }
-                setTimeout(() => {
-                    resolve(close_sheet);
-                }, 200);
+                setTimeout(() => resolve(true), 200);
             };
             wait_open();
         });
@@ -254,17 +253,17 @@
                     "key": "Yes, unlink it.",
                     "fix": true,
                     "func": async () => {
-                        const close = await open_sheet(scan.model, true).catch(log_error);
-                        if (!close) {
+                        const success = await open_sheet(scan.model, true).catch(log_error);
+                        await close_sheet(scan.mode);
+                        if (!success) {
                             return;
                         }
-                        await close();
                         const orig = scan.model.toJSON();
                         delete orig.id;
                         orig.ownedBy = "";
                         orig.account_id = null;
                         const dupe = scan.model.collection.create(orig);
-                        await timeout(100);
+                        await timeout(200);
                         let attrorder = dupe.get("attrorder");
                         const tok = await scan.model.getDefaultToken();
                         scan.model.attribs.each((a) => {
@@ -511,8 +510,8 @@
             all_clear = false;
         }
         if (data.thorough) {
-            const close_callback = await open_sheet(model, false).catch(log_error);
-            if (close_callback) {
+            const success = await open_sheet(model, false).catch(log_error);
+            if (success) {
                 scan.wscan = check_bad_whisper(model);
                 scan.vscan = scan_sheetvalues(model);
                 const wfix = await safe_fix_bad_whisper(scan);
@@ -521,8 +520,8 @@
                     all_clear = false;
                 }
                 await timeout(200);
-                await close_callback().catch(log_error);
             }
+            await close_sheet(model).catch(log_error);
         }
         return { "all_clear": all_clear, "later": false };
     };
