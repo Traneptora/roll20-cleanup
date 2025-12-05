@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.12.05.4
+// @version      2025.12.05.5
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -103,7 +103,7 @@
         const close_sheet = () => {
             const close_button = document.querySelector(
                 `div:has(a.ui-dialog-titlebar-close):has(div[data-characterid="${model.id}"])`
-                +  'a.ui-dialog-titlebar-close');
+                + ' a.ui-dialog-titlebar-close');
             if (!close_button) {
                 return Promise.reject(`Couldn't find close button for model: ${model.id}`);
             }
