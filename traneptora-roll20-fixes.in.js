@@ -79,7 +79,13 @@
         const ruleList = styleSheet.cssRules;
         const idx = hidden ? styleSheet.insertRule(cssrule) : 0;
         const close_sheet = () => {
-            model.view.remove();
+            const close_button = document.querySelector(
+                `div:has(a.ui-dialog-titlebar-close):has(div[data-characterid="${model.id}"])`
+                +  'a.ui-dialog-titlebar-close');
+            if (!close_button) {
+                return Promise.reject(`Couldn't find close button for model: ${model.id}`);
+            }
+            close_button.click();
             if (!hidden) {
                 return Promise.resolve();
             }
