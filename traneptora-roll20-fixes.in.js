@@ -85,7 +85,7 @@
             }
             if (ruleList[idx].cssText === cssrule) {
                 styleSheet.deleteRule(idx);
-                return Promise.resolve();;
+                return Promise.resolve();
             }
             for (let i = 0; i < ruleList.length; i++) {
                 if (ruleList[i].cssText === cssrule) {
@@ -127,7 +127,9 @@
                 if (mancer) {
                     mancer.click();
                 }
-                resolve(close_sheet);
+                setTimeout(() => {
+                    resolve(close_sheet);
+                }, 200);
             };
             wait_open();
         });
@@ -221,7 +223,7 @@
                     "key": "Yes, unlink it.",
                     "fix": true,
                     "func": async () => {
-                        let close = await open_sheet(scan.model, true).catch(log_error);
+                        const close = await open_sheet(scan.model, true).catch(log_error);
                         if (!close) {
                             return;
                         }
@@ -489,11 +491,13 @@
         if (wfix.match) {
             all_clear = false;
         }
+        if (close_callback) {
+            await close_callback().catch(log_error);
+            close_callback = null;
+        }
         scan.vscan = scan_sheetvalues(model);
         if (scan.vscan.issue === null && data.thorough) {
-            if (!close_callback) {
-                close_callback = await open_sheet(model, false).catch(log_error);
-            }
+            close_callback = await open_sheet(model, false).catch(log_error);
             if (close_callback) {
                 scan.vscan = scan_sheetvalues(model);
             }
@@ -504,6 +508,7 @@
         }
         if (close_callback) {
             await close_callback().catch(log_error);
+            close_callback = null;
         }
         return { "all_clear": all_clear, "later": false };
     };
