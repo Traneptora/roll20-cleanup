@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.09.04.1
+// @version      2025.12.05.1
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -100,19 +100,19 @@
         const styleSheet = document.styleSheets[0];
         const ruleList = styleSheet.cssRules;
         const idx = hidden ? styleSheet.insertRule(cssrule) : 0;
-        const close_sheet = async () => {
+        const close_sheet = () => {
             model.view.remove();
             if (!hidden) {
-                return;
+                return Promise.resolve();
             }
             if (ruleList[idx].cssText === cssrule) {
                 styleSheet.deleteRule(idx);
-                return;
+                return Promise.resolve();;
             }
             for (let i = 0; i < ruleList.length; i++) {
                 if (ruleList[i].cssText === cssrule) {
                     styleSheet.deleteRule(i);
-                    return;
+                    return Promise.resolve();
                 }
             }
             return Promise.reject(`Couldn't find rule that was inserted for model: ${model.id}`);
@@ -502,7 +502,7 @@
         scan.wscan = check_bad_whisper(model);
         let close_callback = null;
         if (scan.wscan.badwhisper === null && data.thorough) {
-            close_callback = await open_sheet(model, true).catch(log_error);
+            close_callback = await open_sheet(model, false).catch(log_error);
             if (close_callback) {
                 scan.wscan = check_bad_whisper(model);
             }
@@ -514,7 +514,7 @@
         scan.vscan = scan_sheetvalues(model);
         if (scan.vscan.issue === null && data.thorough) {
             if (!close_callback) {
-                close_callback = await open_sheet(model, true).catch(log_error);
+                close_callback = await open_sheet(model, false).catch(log_error);
             }
             if (close_callback) {
                 scan.vscan = scan_sheetvalues(model);
