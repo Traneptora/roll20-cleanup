@@ -72,8 +72,11 @@
         const fec = model.view.el?.firstElementChild;
         return fec?.contentDocument || fec?.contentWindow?.document;
     };
+    const is_ogl5e = (model) => {
+        return model?.attributes?.charactersheetname === "ogl5e" || model?.characterSheet?.shortName === "ogl5e";
+    };
     const close_sheet = (model) => {
-        if (model?.characterSheet?.shortName !== "ogl5e") {
+        if (!is_ogl5e(model)) {
             return Promise.reject(`Refusing to open non ogl5e sheet: ${model.id}`);
         }
         const cssrule = `div:has(div.characterdialog[data-characterid="${model.id}"]) { display: none !important; }`;
@@ -96,7 +99,7 @@
     };
     const open_sheet = (model, hidden) => {
         console.log(`Loading sheet: ${model.attributes.name}`);
-        if (model?.characterSheet?.shortName !== "ogl5e") {
+        if (!is_ogl5e(model)) {
             return Promise.reject(`Refusing to open non ogl5e sheet: ${model.id}`);
         }
         if (hidden) {
