@@ -232,7 +232,7 @@
                     "fix": true,
                     "func": async () => {
                         const success = await open_sheet(scan.model, true).catch(log_error);
-                        await close_sheet(scan.mode);
+                        await close_sheet(scan.model);
                         if (!success) {
                             return;
                         }
