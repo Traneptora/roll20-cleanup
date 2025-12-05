@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2025.12.05.2
+// @version      2025.12.05.3
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -501,36 +501,16 @@
         if (tfix.match) {
             all_clear = false;
         }
-        scan.wscan = check_bad_whisper(model);
-        let close_callback = null;
-        if (scan.wscan.badwhisper === null && data.thorough) {
-            close_callback = await open_sheet(model, false).catch(log_error);
-            if (close_callback) {
-                scan.wscan = check_bad_whisper(model);
+        if (data.thorough) {
+            const close_callback = await open_sheet(model, false).catch(log_error);
+            scan.wscan = check_bad_whisper(model);
+            scan.vscan = scan_sheetvalues(model);
+            const wfix = await safe_fix_bad_whisper(scan);
+            const vfix = await safe_fix_sheetvalues(scan);
+            if (wfix.match || vfix.match) {
+                all_clear = false;
             }
-        }
-        const wfix = await safe_fix_bad_whisper(scan);
-        if (wfix.match) {
-            all_clear = false;
-        }
-        if (close_callback) {
             await close_callback().catch(log_error);
-            close_callback = null;
-        }
-        scan.vscan = scan_sheetvalues(model);
-        if (scan.vscan.issue === null && data.thorough) {
-            close_callback = await open_sheet(model, false).catch(log_error);
-            if (close_callback) {
-                scan.vscan = scan_sheetvalues(model);
-            }
-        }
-        const vfix = await safe_fix_sheetvalues(scan);
-        if (vfix.match) {
-            all_clear = false;
-        }
-        if (close_callback) {
-            await close_callback().catch(log_error);
-            close_callback = null;
         }
         return { "all_clear": all_clear, "later": false };
     };
