@@ -21,14 +21,14 @@ _cook() {
 git checkout dist
 rm -f -- traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
 git add -v traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
-git commit -m "commit: $(date -u -Is)"
+git commit --allow-empty -m "commit: $(date -u -Is)"
 git checkout "$branch"
 
 _cook
 
 git checkout dist
 git add -v traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
-git commit --fixup=HEAD
+git commit --allow-empty --fixup=HEAD
 git rebase --autosquash
 git push --force origin dist
 git checkout "$branch"
