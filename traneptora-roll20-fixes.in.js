@@ -1,15 +1,30 @@
 (async () => {
+    const timeout = (ms) => {
+        return new Promise((resolve, reject) => setTimeout(resolve, ms));
+    };
+    let tries = 30;
+    while (tries-- > 0 && !window.d20 && !window.currentPlayer?.d20) {
+        console.log("Trying to load d20...");
+        await timeout(500);
+    }
+    if (!tries) {
+        console.log("Timed out loading d20.");
+        return Promise.reject("Timed out loading d20.");
+    }
+
     const d20 = window.d20 || window.currentPlayer.d20;
     const $ = window.$;
     const permit_thorough = true;
+
+    const tranep20 = window.tranep20 || {};
+    window.tranep20 = tranep20;
+
     const log_error = (err) => {
         console.log(err);
         return null;
     };
-    const timeout = (ms) => {
-        return new Promise((resolve, reject) => setTimeout(resolve, ms));
-    };
-    const show_info = (title, message) => {
+
+    const show_info = async (title, message) => {
         const $dialog = $(`<div class="dialog">${message}</div>`);
         return new Promise((resolve, reject) => {
             $dialog.dialog({
@@ -25,6 +40,7 @@
             });
         });
     };
+
     const show_confirm_dialog = (title, messages, options) => {
         return new Promise((resolve, reject) => {
             let dialog_html = '<div class="dialog">';
@@ -68,14 +84,20 @@
             });
         });
     };
+
     const get_document = (model) => {
+        model = lookup_sheet(model);
         const fec = model.view.el?.firstElementChild;
         return fec?.contentDocument || fec?.contentWindow?.document;
     };
+
     const is_ogl5e = (model) => {
+        model = lookup_sheet(model);
         return model?.attributes?.charactersheetname === "ogl5e" || model?.characterSheet?.shortName === "ogl5e";
     };
+
     const close_sheet = (model) => {
+        model = lookup_sheet(model);
         if (!is_ogl5e(model)) {
             return Promise.reject(`Refusing to open non ogl5e sheet: ${model.id}`);
         }
@@ -97,7 +119,9 @@
         }
         return Promise.resolve();
     };
+
     const open_sheet = (model, hidden) => {
+        model = lookup_sheet(model);
         console.log(`Loading sheet: ${model.attributes.name}`);
         if (!is_ogl5e(model)) {
             return Promise.reject(`Refusing to open non ogl5e sheet: ${model.id}`);
@@ -110,11 +134,11 @@
         }
         return new Promise((resolve, reject) => {
             let mancer_count = 0;
-            let count = 0;
+            let count = 40;
             let clicked = false;
             const wait_open = () => {
-                if (count++ >= 20) {
-                    model.view.remove();
+                if (count-- <= 0) {
+                    close_sheet(model);
                     reject(`Timed out on loading page view for model: ${model.id}`);
                     return;
                 }
@@ -139,6 +163,12 @@
                 }
                 if (mancer) {
                     mancer.click();
+                }
+                const gear = doc.querySelector('.container.npc input[name="attr_npc_options-flag"]')
+                    || doc.querySelector('.container.pc input.options[name="attr_tab"]');
+                if (!gear) {
+                    setTimeout(wait_open, 100);
+                    return;
                 }
                 setTimeout(() => resolve(true), 200);
             };
@@ -209,6 +239,108 @@
             },
         ]);
     };
+
+    const uniqof = (arr) => {
+        return arr && arr.length ? arr[0] : null;
+    };
+
+    const get_model_for_name = (name) => {
+        const chars = d20.Campaign.activeCharacters();
+        chars.sort();
+        return uniqof(chars.filter(c => c.attributes.name === name));
+    };
+
+    const lookup_sheet = (input) => {
+        if (typeof(input) !== "string") {
+            return input;
+        }
+        const by_id = d20.journal.findJournalItem(input);
+        if (by_id) {
+            return by_id;
+        }
+        return get_model_for_name(input);
+    };
+
+    const duplicate_sheet = async (model) => {
+        model = lookup_sheet(model);
+        const success = await open_sheet(model, true).catch(log_error);
+        await close_sheet(model);
+        if (!success) {
+            return null;
+        }
+        const orig = model.toJSON();
+        delete orig.id;
+        orig.ownedBy = "";
+        orig.account_id = null;
+        const dupe = model.collection.create(orig);
+        await timeout(200);
+        let attrorder = dupe.get("attrorder");
+        const tok = await model.getDefaultToken();
+        model.attribs.each((a) => {
+            const j = a.toJSON();
+            delete j.id;
+            const a2 = dupe.attribs.create(j);
+            if (tok?.bar1_link === a.id) {
+                tok.bar1_link = a2.id;
+            }
+            if (tok?.bar2_link === a.id) {
+                tok.bar2_link = a2.id;
+            }
+            if (tok?.bar3_link === a.id) {
+                tok.bar3_link = a2.id;
+            }
+            attrorder = attrorder.replace(a.id, a2.id);
+        });
+        let abilorder = dupe.get("abilorder");
+        model.abilities.each((a) => {
+            const j = a.toJSON();
+            delete j.id;
+            const a2 = dupe.abilities.create(j);
+            abilorder = abilorder.replace(a.id, a2.id);
+        });
+        dupe.save({ "abilorder": abilorder, "attrorder": attrorder });
+        const blobs = {};
+        if (model._blobcache.bio) {
+            blobs.bio = model._blobcache.bio;
+        }
+        if (model._blobcache.gmnotes) {
+            blobs.gmnotes = model._blobcache.gmnotes;
+        }
+        await dupe.updateBlobs(blobs);
+        if (tok) {
+            tok.represents = dupe.id;
+            await dupe.saveDefaultToken(tok);
+        }
+        const dig = (arr) => {
+            for (let idx = 0; idx < arr.length; idx++) {
+                if (arr[idx] === model.id) {
+                    arr.splice(idx, 0, dupe.id);
+                    return true;
+                }
+                if (typeof arr[idx] === "object" && Array.isArray(arr[idx]?.i)) {
+                    if (dig(arr[idx].i)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+        let jf = d20.Campaign.get("journalfolder");
+        if (jf !== "") {
+            jf = JSON.parse(jf);
+            if (Array.isArray(jf)) {
+                dig(jf);
+                jf = JSON.stringify(jf);
+                d20.Campaign.save({ "journalfolder": jf });
+            }
+        }
+        const scan = { "model": dupe, "data": { "chars" : await d20.Campaign.activeCharacters() } };
+        rename_sheet_from_collision(scan);
+        await tranep20.fix_duped_spells(dupe.id);
+        await tranep20.fix_spell_dcs(dupe.id);
+        return d20.journal.findJournalItem(dupe.id);
+    };
+
     const safe_fix_unremovable_sheet = (scan) => {
         const rscan = scan.rscan;
         if (!rscan.owned) {
@@ -234,78 +366,10 @@
                     "key": "Yes, unlink it.",
                     "fix": true,
                     "func": async () => {
-                        const success = await open_sheet(scan.model, true).catch(log_error);
-                        await close_sheet(scan.model);
-                        if (!success) {
-                            return;
+                        const dupe = await duplicate_sheet(scan.model);
+                        if (dupe) {
+                            scan.model.destroy();
                         }
-                        const orig = scan.model.toJSON();
-                        delete orig.id;
-                        orig.ownedBy = "";
-                        orig.account_id = null;
-                        const dupe = scan.model.collection.create(orig);
-                        await timeout(200);
-                        let attrorder = dupe.get("attrorder");
-                        const tok = await scan.model.getDefaultToken();
-                        scan.model.attribs.each((a) => {
-                            let j = a.toJSON();
-                            delete j.id;
-                            const a2 = dupe.attribs.create(j);
-                            if (tok?.bar1_link === a.id) {
-                                tok.bar1_link = a2.id;
-                            }
-                            if (tok?.bar2_link === a.id) {
-                                tok.bar2_link = a2.id;
-                            }
-                            if (tok?.bar3_link === a.id) {
-                                tok.bar3_link = a2.id;
-                            }
-                            attrorder = attrorder.replace(a.id, a2.id);
-                        });
-                        let abilorder = dupe.get("abilorder");
-                        scan.model.abilities.each((a) => {
-                            let j = a.toJSON();
-                            delete j.id;
-                            const a2 = dupe.abilities.create(j);
-                            abilorder = abilorder.replace(a.id, a2.id);
-                        });
-                        dupe.save({ "abilorder": abilorder, "attrorder": attrorder });
-                        const blobs = {};
-                        if (scan.model._blobcache.bio) {
-                            blobs.bio = scan.model._blobcache.bio;
-                        }
-                        if (scan.model._blobcache.gmnotes) {
-                            blobs.gmnotes = scan.model._blobcache.gmnotes;
-                        }
-                        await dupe.updateBlobs(blobs);
-                        if (tok) {
-                            tok.represents = dupe.id;
-                            await dupe.saveDefaultToken(tok);
-                        }
-                        const dig = (arr) => {
-                            for (let idx = 0; idx < arr.length; idx++) {
-                                if (arr[idx] === scan.model.id) {
-                                    arr.splice(idx, 1, dupe.id);
-                                    return true;
-                                }
-                                if (typeof arr[idx] === "object" && Array.isArray(arr[idx]?.i)) {
-                                    if (dig(arr[idx].i)) {
-                                        return true;
-                                    }
-                                }
-                            }
-                            return false;
-                        };
-                        let jf = d20.Campaign.get("journalfolder");
-                        if (jf !== "") {
-                            jf = JSON.parse(jf);
-                            if (Array.isArray(jf)) {
-                                dig(jf);
-                                jf = JSON.stringify(jf);
-                                d20.Campaign.save({ "journalfolder": jf });
-                            }
-                        }
-                        scan.model.destroy();
                     },
                 },
             ]);
@@ -376,10 +440,11 @@
             },
         ]);
     };
+
     const get_attribute = (model, name) => {
-        const attr = model.attribs.models.filter(m => m.attributes.name === name);
-        return attr.length > 0 ? attr[0].attributes.current : null;
+        return uniqof(model.attribs.filter(m => m.attributes.name === name))?.attributes?.current;
     };
+
     const scan_sheetvalues = (model) => {
         if (!model.attribs.models.length) {
             return { "issue": null };
@@ -403,6 +468,7 @@
         }
         return vscan;
     };
+
     const safe_fix_sheetvalues = async (scan) => {
         const vscan = scan.vscan;
         if (!vscan.issue) {
@@ -469,6 +535,7 @@
         }
         return p;
     };
+
     const scan_model = async (model, data) => {
         let all_clear = true;
         const scan = {"model": model, "data": data};
@@ -506,6 +573,7 @@
         }
         return { "all_clear": all_clear, "later": false };
     };
+
     const perform_scan = async (thorough) => {
         let all_clear = true;
         const chars = d20.Campaign.activeCharacters();
@@ -517,6 +585,7 @@
         }
         return all_clear;
     };
+
     const scan_type_query = async () => {
         if (!window.is_gm) {
             const message = "You must be a GM in the game room to run this script.";
@@ -546,20 +615,113 @@
             });
         });
     };
-    return scan_type_query().catch((err) => {
-        console.log("Scan type query closed, doing nothing.");
-        return Promise.reject(err);
-    }).then((type) => {
-        if (type === "fast") {
-            return perform_scan(false);
-        } else if (type === "thorough") {
-            return perform_scan(true);
+
+    const run_scan = async () => {
+        return scan_type_query().catch((err) => {
+            console.log("Scan type query closed, doing nothing.");
+            return Promise.reject(err);
+        }).then((type) => {
+            if (type === "fast") {
+                return perform_scan(false);
+            } else if (type === "thorough") {
+                return perform_scan(true);
+            }
+        }).then((result) => {
+            if (result) {
+                return show_info("All Clear", "No sheet issues were found.");
+            } else {
+                return show_info("Scan completed.", "Scan completed.")
+            }
+        });
+    };
+
+    const fix_spell_dcs = async (input) => {
+        const model = lookup_sheet(input);
+        if (!await open_sheet(model, false)) {
+            return Promise.reject("Could not open sheet.");
         }
-    }).then((result) => {
-        if (result) {
-            return show_info("All Clear", "No sheet issues were found.");
-        } else {
-            return show_info("Scan completed.", "Scan completed.")
+        const bdoc = get_document(model);
+        const re = /^repeating_spell-([0-9a-zA-Z]+)_([^_]+)_spell_ability$/;
+        const spelms = model.attribs.filter(m => m?.attributes?.name?.match(re))
+            .map(m => m.attributes.name.replace(re, "$2"));
+        const prev = {};
+        for (const id of spelms) {
+            const field = bdoc.querySelector('div[data-reprowid="' + id + '"] select[name="attr_spell_ability"]');
+            prev[id] = field.value;
+            if (field.value === "spell") {
+                field.value = "0*";
+            } else {
+                field.value = "spell";
+            }
+            await model.view.saveSheetValues(field);
         }
-    });
+        for (const id of spelms) {
+            const field = bdoc.querySelector('div[data-reprowid="' + id + '"] select[name="attr_spell_ability"]');
+            field.value = prev[id];
+            await model.view.saveSheetValues(field);
+        }
+        await close_sheet(model);
+    };
+
+    /* convert a NodeList to an Array */
+    const nta = n => Array.prototype.map.call(n, k => k);
+
+    const fix_duped_spells = async (input) => {
+        const model = lookup_sheet(input);
+        if (!await open_sheet(model, false)) {
+            return Promise.reject("Could not open sheet.");
+        }
+        const bdoc = get_document(model);
+        const all_spelms = nta(bdoc.querySelectorAll('div.spell-container div[data-reprowid]'));
+        const all_spelm_ids = all_spelms.map(s => s.dataset.reprowid);
+        const spelm_lookup = {};
+        for (const spelm of all_spelm_ids) {
+            spelm_lookup[spelm.toLowerCase()] = spelm;
+        }
+        const atks = bdoc.querySelector('div[data-groupname="repeating_attack"]');
+        const spelm_atks = nta(atks.querySelectorAll('div:has(input[name=attr_spellid][value])'));
+        const found = [];
+        bdoc.querySelector('div.repcontrol[data-groupname="repeating_attack"] .btn.repcontrol_edit').click();
+        for (const atk of spelm_atks) {
+            const spelm = atk.querySelector('input[name=attr_spellid]').value;
+            const l = spelm.toLowerCase();
+            if (!(l in spelm_lookup)) {
+                continue;
+            }
+            if (found.includes(l)) {
+                atk.querySelector('div.itemcontrol .btn.repcontrol_del').click();
+            } else {
+                const re = /^repeating_spell-([0-9a-zA-Z]+)_([^_]+)_rollcontent$/;
+                const found = model.attribs.filter(m => m?.attributes?.name?.match(re))
+                    .filter(m => m.attributes.name.replace(re, "$2").toLowerCase() === l);
+                uniqof(found)?.save({
+                    "current": '%{' + model.id + '|repeating_attack_' + atk.dataset.reprowid + '_attack}'
+                });
+            }
+            found.push(l);
+        }
+        bdoc.querySelector('div.repcontrol[data-groupname="repeating_attack"] .btn.repcontrol_edit').click();
+    };
+
+    const set_remote_token = async (input, url) => {
+        const model = lookup_sheet(input);
+        model.save({"avatar": url});
+        return model.getDefaultToken().then((tok) => {
+            tok.imgsrc = url;
+            return model.saveDefaultToken(tok);
+        });
+    };
+
+    tranep20.lookup_sheet = lookup_sheet;
+    tranep20.open_sheet = open_sheet;
+    tranep20.duplicate_sheet = duplicate_sheet;
+    tranep20.set_remote_token = set_remote_token;
+    tranep20.run_scan = run_scan;
+    tranep20.fix_spell_dcs = fix_spell_dcs;
+    tranep20.close_sheet = close_sheet;
+    tranep20.fix_duped_spells = fix_duped_spells;
+
+    window.d20 = d20;
+
+    return run_scan();
 })();
