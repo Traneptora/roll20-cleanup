@@ -188,16 +188,10 @@
         });
     };
     const detect_sheet_removal_issue = (model) => {
-        if (!model.attributes.ownedBy) {
-            return { "owned": false, "api_id": null };
+        if (model.attributes.account_id && model.attributes.vault_character_id && model.attributes.ownedBy) {
+            return { "owned": true, "owner": model.attributes.ownedBy, "creator": model.attributes.createdBy };
         }
-        const parts = model.id.toString().split("_", 2);
-        /* undefined instead of null because isFinite(null) == true */
-        const api_id = parts.length == 2 ? +parts[1] : undefined;
-        if (isFinite(api_id)) {
-            return { "owned": true, "api_id": parts[1] };
-        }
-        return {"owned": true, "api_id": null };
+        return { "owned": false, "owner": null, "creator": model.attributes.createdBy };
     };
     const check_bad_whisper = (model) => {
         if (!model.attribs.models.length) {
@@ -341,56 +335,51 @@
         return d20.journal.findJournalItem(dupe.id);
     };
 
+    const destroy_character = async (model, force) => {
+        const id = model.id;
+        if (model.isLinkedCharacter()) {
+            model.unlinkFromGame();
+            await timeout(500);
+            if (!force && !d20.journal.findJournalItem(id)) {
+                return;
+            }
+        }
+        model.destroy();
+    };
+
     const safe_fix_unremovable_sheet = (scan) => {
         const rscan = scan.rscan;
         if (!rscan.owned) {
             return { "match": false };
         }
-        if (rscan.api_id) {
-            return show_confirm_dialog("Confirm Deletion", [
-                {
-                    "key": "Found a linked sheet",
-                    "value": scan.model.attributes.name,
-                },
-                "Would you like me to do anything about it?",
-            ], [
-                {
-                    "key": "Yes, remove it.",
-                    "fix": true,
-                    "func": () => {
-                        scan.model.attributes.ownedBy = undefined;
-                        scan.model.destroy();
-                    },
-                },
-                {
-                    "key": "Yes, unlink it.",
-                    "fix": true,
-                    "func": async () => {
-                        const dupe = await duplicate_sheet(scan.model);
-                        if (dupe) {
-                            scan.model.destroy();
-                        }
-                    },
-                },
-            ]);
-        } else {
-            return show_confirm_dialog("Confirm Deletion", [
-                {
-                    "key": "Found a semi-linked sheet that you probably can't get rid of",
-                    "value": scan.model.attributes.name,
-                },
-                "Would you like it to be deleted?",
-            ], [
-                {
-                    "key": "Yes, please delete.",
-                    "fix": true,
-                    "func": () => {
-                        scan.model.attributes.ownedBy = undefined;
-                        scan.model.destroy();
-                    },
-                },
-            ]);
+        if (!rscan.owner || rscan.owner !== rscan.creator) {
+            return { "match": false };
         }
+        return show_confirm_dialog("Confirm Deletion", [
+            {
+                "key": "Found a linked sheet.",
+                "value": scan.model.attributes.name,
+            },
+            "Would you like me to do anything about it?",
+        ], [
+            {
+                "key": "Yes, remove it.",
+                "fix": true,
+                "func": async () => {
+                    return destroy_character(scan.model, false);
+                },
+            },
+            {
+                "key": "Yes, unlink it.",
+                "fix": true,
+                "func": async () => {
+                    const dupe = await duplicate_sheet(scan.model);
+                    if (dupe) {
+                        return destroy_character(scan.model, false);
+                    }
+                },
+            },
+        ]);
     };
     const safe_fix_bad_whisper = async (scan) => {
         const wscan = scan.wscan;
