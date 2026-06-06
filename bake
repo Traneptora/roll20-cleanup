@@ -29,7 +29,7 @@ _cook
 git checkout dist
 git add -v traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
 git commit --allow-empty --fixup=HEAD
-git rebase --autosquash
+git rebase --allow-empty --autosquash
 git push --force origin dist
 git checkout "$branch"
 rm -f -- traneptora-roll20-fixes.meta.js traneptora-roll20-fixes.user.js
