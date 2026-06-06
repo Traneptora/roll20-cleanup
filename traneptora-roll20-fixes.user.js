@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Traneptora's Roll20 Cleanup Script
 // @namespace    https://traneptora.com/
-// @version      2026.06.06.2
+// @version      2026.06.06.3
 // @updateURL    https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.meta.js
 // @downloadURL  https://raw.githubusercontent.com/Traneptora/roll20-cleanup/refs/heads/dist/traneptora-roll20-fixes.user.js
 // @description  Traneptora's Roll20 Cleanup Script
@@ -395,9 +395,10 @@
                 "key": "Yes, unlink it.",
                 "fix": true,
                 "func": async () => {
+                    const name = scan.model.attributes.name;
                     const dupe = await duplicate_sheet(scan.model);
                     if (dupe) {
-                        return destroy_character(scan.model, false);
+                        return destroy_character(scan.model, false).then(() => dupe.save({"name": name}));
                     }
                 },
             },
