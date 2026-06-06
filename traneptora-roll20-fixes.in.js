@@ -373,9 +373,10 @@
                 "key": "Yes, unlink it.",
                 "fix": true,
                 "func": async () => {
+                    const name = scan.model.attributes.name;
                     const dupe = await duplicate_sheet(scan.model);
                     if (dupe) {
-                        return destroy_character(scan.model, false);
+                        return destroy_character(scan.model, false).then(() => dupe.save({"name": name}));
                     }
                 },
             },
